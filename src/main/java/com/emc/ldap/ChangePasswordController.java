@@ -14,11 +14,8 @@ import java.util.Hashtable;
 @Controller
 public class ChangePasswordController {
 
-    @Value("${baseName:dc=example,dc=com}")
-    String baseName;
-
-    @Value("${providerUrl:localhost:3890}") //serverIP:serverPort
-    String providerUrl;
+    @Value("${url:localhost:3890}") //serverIP:serverPort
+    String url;
 
     @Value("${ssl:false}")
     boolean ssl;
@@ -41,16 +38,23 @@ public class ChangePasswordController {
     @RequestMapping(value="/passwordChange", method= RequestMethod.POST)
     public String passwordChangeSubmit(@ModelAttribute PasswordChange passwordChange, Model model) {
 
+        System.out.println("execute password change request to ldap...");
+        System.out.println("url:" + url);
+        System.out.println("ssl:" + ssl);
+        System.out.println("cnsuffix:" + cnsuffix);
+        System.out.println("the request will be: cn=YOUR-NAME" + cnsuffix);
+
+
         try {
             if(!passwordChange.getPassword().equals(passwordChange.getPasswordRepeat())) {
                 model.addAttribute("error", true);
-                model.addAttribute("message", "password and repeation do not fit");
+                model.addAttribute("message", "password and password repeat not equal");
                 return "passwordChange";
             }
 
             Hashtable ldapEnv = new Hashtable(11);
             ldapEnv.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
-            ldapEnv.put(Context.PROVIDER_URL,  "ldap://" + providerUrl);
+            ldapEnv.put(Context.PROVIDER_URL,  "ldap://" + url);
             ldapEnv.put(Context.SECURITY_AUTHENTICATION, "simple");
             //String principal = "cn=" + passwordChange.getName() + ", ou=users,dc=example,dc=com";
             String principal = "cn=" + passwordChange.getName() + cnsuffix;
@@ -59,7 +63,7 @@ public class ChangePasswordController {
             if(ssl) {
                 ldapEnv.put(Context.SECURITY_PROTOCOL, "ssl");
             }
-            System.out.println("updating password... using " + "ldap://" + providerUrl + " with " + principal);
+            System.out.println("updating password... using " + "ldap://" + url + " with " + principal);
             DirContext ldapContext = new InitialDirContext(ldapEnv);
             ModificationItem[] mods = new ModificationItem[1];
             mods[0] = new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
@@ -69,10 +73,10 @@ public class ChangePasswordController {
             model.addAttribute("success", true);
             return "passwordChange";
         } catch (Exception e) {
-            System.out.println("update password error: " + e.getMessage());
+            System.out.println("try to update password lead to an error: " + e.getMessage());
             model.addAttribute("message", e.getMessage());
             model.addAttribute("error", true);
-            e.printStackTrace();
+            //e.printStackTrace();
             return "passwordChange";
         }
     }
