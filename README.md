@@ -1,10 +1,10 @@
 # ldap-spring-boot
 
-This application can run standalone or can be deployed to various PAAS solutions (e.g. to PCF) and can be connected to LDAP in order to enable users to change their password
+This application can run standalone or can be deployed to various PAAS solutions (e.g. to PCF) and can be connected to LDAP in order to enable users to change their password, this assumeas that all users are in the same directoy structure
 
 In order to connect it against LDAP you need to set some environment variables:
 
-* url is the url to the LDAP istallation including the port, default is "localhost:3890" 
+* url - the url to the LDAP istallation including the port but without the protocol, default is "localhost:3890" 
 * cnsuffix will be added to the username, add the parameters there you need to find the entry in your directory default is ", ou=users,dc=example,dc=com" which leads to "cn=test, ou=users,dc=example,dc=com" for a user test 
 * ssl use ssl or not, default is "false"
 * basename default is dc=example,dc=com
@@ -21,29 +21,26 @@ some terms you should know:
 
 ## Test app locally
 
-It is up to you how to test it, I use https://github.com/gschueler/vagrant-rundeck-ldap for a local LDAP installation (it uses OpenLDAP), apache director studio (http://directory.apache.org/studio/) as LDAP editor and run the app locally (gradlew bootRun) or I use PCF Dev (https://pivotal.io/platform/pcf-tutorials/getting-started-with-pivotal-cloud-foundry-dev/introduction). This hints are referring to this.
+It is up to you how to test it, I use https://github.com/gschueler/vagrant-rundeck-ldap for a local LDAP installation (it uses OpenLDAP), apache director studio (http://directory.apache.org/studio/) as LDAP editor and run the app locally (gradlew bootRun) or I use PCF Dev (https://pivotal.io/platform/pcf-tutorials/getting-started-with-pivotal-cloud-foundry-dev/introduction). This hints are referring to this test setup.
 
 prepare:
 
-* in https://github.com/gschueler/vagrant-rundeck-ldap execute vagrant up
-* install apache director editor
-* connect to ldap in vagrant box via editor (localhost:3890; bind:cn=deploy, ou=users,dc=example,dc=com
-* test the box and the users, you can play with this users e.g. 'cn=deploy,ou=users,dc=example,dc=com with password deploy' or https://github.com/gschueler/vagrant-rundeck-ldap/blob/master/example-jaas-ldap.conf or https://github.com/gschueler/vagrant-rundeck-ldap/blob/master/default.ldif
+* in https://github.com/gschueler/vagrant-rundeck-ldap execute 'vagrant up'
 
-optional - prepare:
+optional (if you want to use PCF) - prepare:
 
-* optional if you want to use PCF - download PCF DEV https://github.com/gschueler/vagrant-rundeck-ldap execute vagrant up
-* optional if you want to use PCF - install PCF cli (https://pivotal.io/platform/pcf-tutorials/getting-started-with-pivotal-cloud-foundry-dev/install-the-cf-cli)
+* download PCF DEV https://github.com/gschueler/vagrant-rundeck-ldap and install it
+* install PCF cli (https://pivotal.io/platform/pcf-tutorials/getting-started-with-pivotal-cloud-foundry-dev/install-the-cf-cli)
 
 1.build the app:
 
     gradlew clean build
 
-2.a test locally: 
+2.a test the app locally: 
 
     gradlew bootRun
     # open localhost:8080
-    # chanmge password for user deploy (password is deploy)
+    # change password for user deploy (password is deploy)
 
 2.b optional - test with local PCF:  
 
@@ -62,5 +59,8 @@ optional - prepare:
     # Admin user => Email: admin / Password: admin
     # Regular user => Email: user / Password: pass
 
+## appendix
+
+If you want to tst the vagrant box with ldap, you can use for example the apache director studio (http://directory.apache.org/studio/). Connect apache director to ldap in vagrant box (localhost:3890; bind:cn=deploy, ou=users,dc=example,dc=com and test the box and the users, means you can play e.g. use 'cn=deploy,ou=users,dc=example,dc=com with password deploy' or just take one from https://github.com/gschueler/vagrant-rundeck-ldap/blob/master/example-jaas-ldap.conf or https://github.com/gschueler/vagrant-rundeck-ldap/blob/master/default.ldif
 
 
