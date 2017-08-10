@@ -8,6 +8,7 @@ In order to connect it against LDAP you need to set some environment variables:
 * cnsuffix will be added to the username, add the parameters there you need to find the entry in your directory default is ", ou=users,dc=example,dc=com" which leads to "cn=test, ou=users,dc=example,dc=com" for a user test 
 * ssl use ssl or not, default is "false"
 * basename default is dc=example,dc=com
+* excludes (list of user which are not allowed to change password seperated by ;)default is it.admin and admin (it.admin;admin)
     
 some words about LDAP:
 

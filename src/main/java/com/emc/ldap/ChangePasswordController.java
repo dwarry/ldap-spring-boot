@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import javax.naming.Context;
 import javax.naming.directory.*;
 import java.util.Hashtable;
+import java.util.List;
 
 @Controller
 public class ChangePasswordController {
@@ -23,12 +24,15 @@ public class ChangePasswordController {
     @Value("${cnsuffix:, ou=users,dc=example,dc=com}")
     String cnsuffix;
 
+    @Value("#{'${excludes:it.admin;admin}'.split(';')}")
+    private List<String> excludes;
 
     @RequestMapping("/")
     public String changePassword(Model model) {
 
         PasswordChange passwordChange = new PasswordChange();
         passwordChange.setName("");
+        passwordChange.setOldPassword("");
         passwordChange.setPassword("");
         passwordChange.setPasswordRepeat("");
         model.addAttribute("passwordChange", passwordChange);
@@ -46,6 +50,12 @@ public class ChangePasswordController {
 
 
         try {
+            if(excludes.contains(passwordChange.getName().trim())) {
+                model.addAttribute("error", true);
+                model.addAttribute("message", "it is not allowed to change the password of this user, see exclude list");
+                return "passwordChange";
+            }
+
             if(!passwordChange.getPassword().equals(passwordChange.getPasswordRepeat())) {
                 model.addAttribute("error", true);
                 model.addAttribute("message", "password and password repeat not equal");
@@ -76,7 +86,7 @@ public class ChangePasswordController {
             System.out.println("try to update password lead to an error: " + e.getMessage());
             model.addAttribute("message", e.getMessage());
             model.addAttribute("error", true);
-            //e.printStackTrace();
+            e.printStackTrace();
             return "passwordChange";
         }
     }
