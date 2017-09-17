@@ -6,6 +6,34 @@ public class PasswordChange {
     String password;
     String oldPassword;
 
+    String url;
+    String cnsuffix;
+    String cnprefix;
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getCnsuffix() {
+        return cnsuffix;
+    }
+
+    public void setCnsuffix(String cnsuffix) {
+        this.cnsuffix = cnsuffix;
+    }
+
+    public String getCnprefix() {
+        return cnprefix;
+    }
+
+    public void setCnprefix(String cnprefix) {
+        this.cnprefix = cnprefix;
+    }
+
     public String getName() {
         return name;
     }

@@ -24,6 +24,9 @@ public class ChangePasswordController {
     @Value("${cnsuffix:, ou=users,dc=example,dc=com}")
     String cnsuffix;
 
+    @Value("${cnprefix:cn=}")
+    String cnprefix;
+
     @Value("#{'${excludes:it.admin;admin}'.split(';')}")
     private List<String> excludes;
 
@@ -35,6 +38,10 @@ public class ChangePasswordController {
         passwordChange.setOldPassword("");
         passwordChange.setPassword("");
         passwordChange.setPasswordRepeat("");
+        passwordChange.setCnprefix(cnprefix);
+        passwordChange.setCnsuffix(cnsuffix);
+        passwordChange.setUrl(url);
+
         model.addAttribute("passwordChange", passwordChange);
         return "ChangePassword";
     }
@@ -46,8 +53,8 @@ public class ChangePasswordController {
         System.out.println("url:" + url);
         System.out.println("ssl:" + ssl);
         System.out.println("cnsuffix:" + cnsuffix);
-        System.out.println("the request will be: cn=YOUR-NAME" + cnsuffix);
-
+        System.out.println("cnprefix:" + cnprefix);
+        System.out.println("the request will be: " + cnprefix + "YOUR-NAME" + cnsuffix);
 
         try {
             if(excludes.contains(passwordChange.getName().trim())) {
@@ -66,8 +73,7 @@ public class ChangePasswordController {
             ldapEnv.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
             ldapEnv.put(Context.PROVIDER_URL,  "ldap://" + url);
             ldapEnv.put(Context.SECURITY_AUTHENTICATION, "simple");
-            //String principal = "cn=" + passwordChange.getName() + ", ou=users,dc=example,dc=com";
-            String principal = "cn=" + passwordChange.getName() + cnsuffix;
+            String principal = cnprefix + passwordChange.getName() + cnsuffix;
             ldapEnv.put(Context.SECURITY_PRINCIPAL, principal);
             ldapEnv.put(Context.SECURITY_CREDENTIALS, passwordChange.getOldPassword());
             if(ssl) {
