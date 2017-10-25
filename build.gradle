@@ -30,6 +30,7 @@ dependencies {
 
 	//compile("org.springframework.boot:spring-boot-starter-security")
 
+	compile('org.springframework.security:spring-security-web:4.2.3.RELEASE')
 	compile("org.springframework.ldap:spring-ldap-core")
     //compile("org.springframework.security:spring-security-ldap")
     //compile("org.springframework.ldap:spring-ldap-core:2.0.2.RELEASE")

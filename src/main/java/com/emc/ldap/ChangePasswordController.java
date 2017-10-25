@@ -1,11 +1,14 @@
 package com.emc.ldap;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.encoding.LdapShaPasswordEncoder;
+import org.springframework.security.crypto.keygen.BytesKeyGenerator;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.security.crypto.keygen.KeyGenerators;
 
 import javax.naming.Context;
 import javax.naming.directory.*;
@@ -16,16 +19,16 @@ import java.util.List;
 public class ChangePasswordController {
 
     @Value("${url:localhost:3890}") //serverIP:serverPort
-    String url;
+    private String url;
 
     @Value("${ssl:false}")
-    boolean ssl;
+    private boolean ssl;
 
     @Value("${cnsuffix:, ou=users,dc=example,dc=com}")
-    String cnsuffix;
+    private String cnsuffix;
 
     @Value("${cnprefix:cn=}")
-    String cnprefix;
+    private String cnprefix;
 
     @Value("#{'${excludes:it.admin;admin}'.split(';')}")
     private List<String> excludes;
@@ -69,24 +72,48 @@ public class ChangePasswordController {
                 return "passwordChange";
             }
 
-            Hashtable ldapEnv = new Hashtable(11);
+            final Hashtable<String, String> ldapEnv = new Hashtable<>(11);
+
             ldapEnv.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
+
             ldapEnv.put(Context.PROVIDER_URL,  "ldap://" + url);
+
             ldapEnv.put(Context.SECURITY_AUTHENTICATION, "simple");
-            String principal = cnprefix + passwordChange.getName() + cnsuffix;
+
+            final String principal = cnprefix + passwordChange.getName() + cnsuffix;
+
             ldapEnv.put(Context.SECURITY_PRINCIPAL, principal);
+
             ldapEnv.put(Context.SECURITY_CREDENTIALS, passwordChange.getOldPassword());
+
             if(ssl) {
                 ldapEnv.put(Context.SECURITY_PROTOCOL, "ssl");
             }
+
             System.out.println("updating password... using " + "ldap://" + url + " with " + principal);
-            DirContext ldapContext = new InitialDirContext(ldapEnv);
-            ModificationItem[] mods = new ModificationItem[1];
+
+            final DirContext ldapContext = new InitialDirContext(ldapEnv);
+
+            final BytesKeyGenerator saltGenerator = KeyGenerators.secureRandom(4);
+
+            final byte[] salt = saltGenerator.generateKey();
+
+            final LdapShaPasswordEncoder saltedPasswordEncoder =
+                    new LdapShaPasswordEncoder();
+
+            final String saltedPasswordHash = saltedPasswordEncoder.encodePassword(passwordChange.getPassword(), salt);
+
+            final ModificationItem[] mods = new ModificationItem[1];
+
             mods[0] = new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
-                    new BasicAttribute("userPassword", passwordChange.getPassword()));
+                    new BasicAttribute("userPassword", saltedPasswordHash));
+
             ldapContext.modifyAttributes(principal, mods);
+
             System.out.println("password changed");
+
             model.addAttribute("success", true);
+
             return "passwordChange";
         } catch (Exception e) {
             System.out.println("try to update password lead to an error: " + e.getMessage());
