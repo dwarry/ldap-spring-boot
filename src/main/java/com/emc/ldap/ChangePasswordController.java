@@ -19,6 +19,8 @@ import java.util.List;
 @Controller
 public class ChangePasswordController {
 
+    public static final String[] USER_PASSWORD_ATTRS = {"userPassword"};
+
     @Value("${url:localhost:3890}") //serverIP:serverPort
     private String url;
 
@@ -50,7 +52,7 @@ public class ChangePasswordController {
         return "ChangePassword";
     }
 
-    private List<String> validateDetails(PasswordChange passwordChange, Model model){
+    private List<String> validateDetails(PasswordChange passwordChange){
 
         final List<String> messages = new ArrayList<>();
 
@@ -128,7 +130,7 @@ public class ChangePasswordController {
         System.out.println("the request will be: " + cnprefix + "YOUR-NAME" + cnsuffix);
 
         try {
-            final List<String> messages = validateDetails(passwordChange, model);
+            final List<String> messages = validateDetails(passwordChange);
 
             if(messages == null){
 
@@ -161,6 +163,14 @@ public class ChangePasswordController {
 
             final DirContext ldapContext = new InitialDirContext(ldapEnv);
 
+            final Attributes entry = ldapContext.getAttributes(principal, USER_PASSWORD_ATTRS);
+
+            System.out.println("Retrieved " + entry.size() + "attributes for " + principal);
+
+            final Attribute oldPassword = entry.get(USER_PASSWORD_ATTRS[0]);
+
+            System.out.println("Found a userPassword entry: " + (oldPassword == null ? "no" : "yes"));
+
             final BytesKeyGenerator saltGenerator = KeyGenerators.secureRandom(4);
 
             final byte[] salt = saltGenerator.generateKey();
@@ -170,10 +180,12 @@ public class ChangePasswordController {
 
             final String saltedPasswordHash = saltedPasswordEncoder.encodePassword(passwordChange.getPassword(), salt);
 
-            final ModificationItem[] mods = new ModificationItem[1];
+            final ModificationItem[] mods = new ModificationItem[2];
 
-            mods[0] = new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
-                    new BasicAttribute("userPassword", saltedPasswordHash));
+            mods[0] = new ModificationItem(DirContext.REMOVE_ATTRIBUTE, oldPassword);
+
+            mods[1] = new ModificationItem(DirContext.ADD_ATTRIBUTE,
+                    new BasicAttribute(USER_PASSWORD_ATTRS[0], saltedPasswordHash));
 
             ldapContext.modifyAttributes(principal, mods);
 
