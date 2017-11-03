@@ -12,6 +12,7 @@ import org.springframework.security.crypto.keygen.KeyGenerators;
 
 import javax.naming.Context;
 import javax.naming.directory.*;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 
@@ -49,6 +50,73 @@ public class ChangePasswordController {
         return "ChangePassword";
     }
 
+    private List<String> validateDetails(PasswordChange passwordChange, Model model){
+
+        final List<String> messages = new ArrayList<>();
+
+        if(excludes.contains(passwordChange.getName().trim())) {
+            messages.add("it is not allowed to change the password of this user, see exclude list");
+
+            return messages;
+        }
+
+        String password = passwordChange.getPassword();
+
+        if(!password.equals(passwordChange.getPasswordRepeat())) {
+            messages.add("New password values do not match");
+
+            return messages;
+        }
+
+        boolean tooShort = password.length() < 12;
+
+        boolean noUpperCase = true;
+
+        boolean noLowerCase = true;
+
+        boolean noNumber = true;
+
+        boolean noSymbol = true;
+
+        for (int i = 0, n = password.length(); i < n; ++i){
+            char ch = password.charAt(i);
+
+            if(Character.isUpperCase(ch)){
+                noUpperCase = false;
+            }
+            else if(Character.isLowerCase(ch)){
+                noLowerCase = false;
+            }
+            else if(Character.isDigit(ch)){
+                noNumber = false;
+            }
+            else {
+                noSymbol = false;
+            }
+        }
+
+        if(tooShort){
+            messages.add("Password must be at least 12 characters long.");
+        }
+
+        if(noUpperCase){
+            messages.add("Password must contain at least one upper-case character.");
+        }
+
+        if(noLowerCase){
+            messages.add("Password must contain at least one lower-case character.");
+        }
+
+        if(noNumber){
+            messages.add("Password must contain at least one number.");
+        }
+
+        if(noSymbol){
+            messages.add("Password must contain at least one symbol.");
+        }
+
+        return messages;
+    }
     @RequestMapping(value="/passwordChange", method= RequestMethod.POST)
     public String passwordChangeSubmit(@ModelAttribute PasswordChange passwordChange, Model model) {
 
@@ -60,15 +128,14 @@ public class ChangePasswordController {
         System.out.println("the request will be: " + cnprefix + "YOUR-NAME" + cnsuffix);
 
         try {
-            if(excludes.contains(passwordChange.getName().trim())) {
-                model.addAttribute("error", true);
-                model.addAttribute("message", "it is not allowed to change the password of this user, see exclude list");
-                return "passwordChange";
-            }
+            final List<String> messages = validateDetails(passwordChange, model);
 
-            if(!passwordChange.getPassword().equals(passwordChange.getPasswordRepeat())) {
+            if(messages == null){
+
                 model.addAttribute("error", true);
-                model.addAttribute("message", "password and password repeat not equal");
+
+                model.addAttribute("message", messages);
+
                 return "passwordChange";
             }
 
