@@ -54,6 +54,8 @@ public class ChangePasswordController {
 
     private List<String> validateDetails(PasswordChange passwordChange){
 
+        System.out.println("Attempting to change password for " + passwordChange.getName() + " to " + passwordChange.getPassword());
+
         final List<String> messages = new ArrayList<>();
 
         if(excludes.contains(passwordChange.getName().trim())) {
@@ -97,6 +99,13 @@ public class ChangePasswordController {
             }
         }
 
+        System.out.println("tooShort:" + tooShort);
+        System.out.println("noUpperCase:" + noUpperCase);
+        System.out.println("noLowerCase:" + noLowerCase);
+        System.out.println("noNumber:" + noNumber);
+        System.out.println("noSymbol:" + noSymbol);
+
+
         if(tooShort){
             messages.add("Password must be at least 12 characters long.");
         }
@@ -132,14 +141,17 @@ public class ChangePasswordController {
         try {
             final List<String> messages = validateDetails(passwordChange);
 
-            if(messages == null){
+            if(messages.size() > 0) {
+                System.out.println("Invalid password change request");
 
                 model.addAttribute("error", true);
 
-                model.addAttribute("message", messages);
+                model.addAttribute("messages", messages);
 
                 return "passwordChange";
             }
+
+            System.out.println("Attempting to change password");
 
             final Hashtable<String, String> ldapEnv = new Hashtable<>(11);
 
@@ -150,7 +162,6 @@ public class ChangePasswordController {
             ldapEnv.put(Context.SECURITY_AUTHENTICATION, "simple");
 
             final String principal = cnprefix + passwordChange.getName() + cnsuffix;
-
             ldapEnv.put(Context.SECURITY_PRINCIPAL, principal);
 
             ldapEnv.put(Context.SECURITY_CREDENTIALS, passwordChange.getOldPassword());
