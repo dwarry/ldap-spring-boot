@@ -1,17 +1,20 @@
 package com.emc.ldap;
 
+import com.unboundid.ldap.sdk.ExtendedResult;
+import com.unboundid.ldap.sdk.ResultCode;
+import com.unboundid.util.LDAPTestUtils;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.encoding.LdapShaPasswordEncoder;
-import org.springframework.security.crypto.keygen.BytesKeyGenerator;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.security.crypto.keygen.KeyGenerators;
 
-import javax.naming.Context;
-import javax.naming.directory.*;
+import com.unboundid.ldap.sdk.LDAPConnection;
+import com.unboundid.ldap.sdk.LDAPException;
+
+import com.unboundid.ldap.sdk.extensions.PasswordModifyExtendedRequest;
+import com.unboundid.ldap.sdk.extensions.PasswordModifyExtendedResult;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -21,7 +24,7 @@ public class ChangePasswordController {
 
     public static final String[] USER_PASSWORD_ATTRS = {"userPassword"};
 
-    @Value("${url:localhost:3890}") //serverIP:serverPort
+    @Value("${url:localhost:389}") //serverIP:serverPort
     private String url;
 
     @Value("${ssl:false}")
@@ -153,56 +156,49 @@ public class ChangePasswordController {
 
             System.out.println("Attempting to change password");
 
-            final Hashtable<String, String> ldapEnv = new Hashtable<>(11);
+            final String[] parts = url.split(":",2);
 
-            ldapEnv.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
+            final String host = parts[0];
 
-            ldapEnv.put(Context.PROVIDER_URL,  "ldap://" + url);
+            final String portString = parts.length == 2 ? parts[1] : "389";
 
-            ldapEnv.put(Context.SECURITY_AUTHENTICATION, "simple");
+            final int port = Integer.parseInt(portString);
 
-            final String principal = cnprefix + passwordChange.getName() + cnsuffix;
-            ldapEnv.put(Context.SECURITY_PRINCIPAL, principal);
+            final String userDn = cnprefix + passwordChange.getName() + cnsuffix;
 
-            ldapEnv.put(Context.SECURITY_CREDENTIALS, passwordChange.getOldPassword());
+            LDAPConnection connection = new LDAPConnection(host, port, userDn, passwordChange.getOldPassword());
 
-            if(ssl) {
-                ldapEnv.put(Context.SECURITY_PROTOCOL, "ssl");
+            try {
+                final PasswordModifyExtendedRequest request = new PasswordModifyExtendedRequest(userDn,
+                        passwordChange.getOldPassword(),
+                        passwordChange.getPassword());
+
+                PasswordModifyExtendedResult result;
+
+                try{
+                    result = (PasswordModifyExtendedResult) connection.processExtendedOperation(request);
+
+                }
+                catch(LDAPException ex){
+                    System.out.println("Could not change password: " + ex.getMessage());
+                    System.out.println("Diagnostic message: " + ex.getDiagnosticMessage());
+                    result = new PasswordModifyExtendedResult(new ExtendedResult(ex.toLDAPResult()));
+                }
+
+                if(result.getResultCode() != ResultCode.SUCCESS){
+
+                    System.out.println("Result Code: " + result.getResultCode().toString());
+
+                    messages.add(result.getResultCode().toString());
+
+                    model.addAttribute("error", true);
+
+                    model.addAttribute("messages", messages);
+                }
             }
-
-            System.out.println("updating password... using " + "ldap://" + url + " with " + principal);
-
-            final DirContext ldapContext = new InitialDirContext(ldapEnv);
-
-            final Attributes entry = ldapContext.getAttributes(principal, USER_PASSWORD_ATTRS);
-
-            System.out.println("Retrieved " + entry.size() + "attributes for " + principal);
-
-            final Attribute oldPassword = entry.get(USER_PASSWORD_ATTRS[0]);
-
-            System.out.println("Found a userPassword entry: " + (oldPassword == null ? "no" : "yes"));
-
-            final BytesKeyGenerator saltGenerator = KeyGenerators.secureRandom(4);
-
-            final byte[] salt = saltGenerator.generateKey();
-
-            final LdapShaPasswordEncoder saltedPasswordEncoder =
-                    new LdapShaPasswordEncoder();
-
-            final String saltedPasswordHash = saltedPasswordEncoder.encodePassword(passwordChange.getPassword(), salt);
-
-            final ModificationItem[] mods = new ModificationItem[2];
-
-            mods[0] = new ModificationItem(DirContext.REMOVE_ATTRIBUTE, oldPassword);
-
-            mods[1] = new ModificationItem(DirContext.ADD_ATTRIBUTE,
-                    new BasicAttribute(USER_PASSWORD_ATTRS[0], saltedPasswordHash));
-
-            ldapContext.modifyAttributes(principal, mods);
-
-            System.out.println("password changed");
-
-            model.addAttribute("success", true);
+            finally{
+                connection.close();
+            }
 
             return "passwordChange";
         } catch (Exception e) {
