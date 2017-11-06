@@ -1,8 +1,13 @@
 package com.emc.ldap;
 
 import com.unboundid.ldap.sdk.ExtendedResult;
+import com.unboundid.ldap.sdk.LDAPConnection;
+import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.ResultCode;
-import com.unboundid.util.LDAPTestUtils;
+import com.unboundid.ldap.sdk.extensions.PasswordModifyExtendedRequest;
+import com.unboundid.ldap.sdk.extensions.PasswordModifyExtendedResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -10,13 +15,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-import com.unboundid.ldap.sdk.LDAPConnection;
-import com.unboundid.ldap.sdk.LDAPException;
-
-import com.unboundid.ldap.sdk.extensions.PasswordModifyExtendedRequest;
-import com.unboundid.ldap.sdk.extensions.PasswordModifyExtendedResult;
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.List;
 
 @Controller
@@ -26,6 +25,8 @@ public class ChangePasswordController {
     public static final String MESSAGES = "messages";
     public static final String ERROR = "error";
     public static final String RESULT_PAGE = "passwordChange";
+
+    private static final Logger LOG = LoggerFactory.getLogger(ChangePasswordController.class);
 
     @Value("${url:localhost:389}") //serverIP:serverPort
     private String url;
@@ -59,8 +60,6 @@ public class ChangePasswordController {
     }
 
     private List<String> validateDetails(PasswordChange passwordChange){
-
-        System.out.println("Attempting to change password for " + passwordChange.getName() + " to " + passwordChange.getPassword());
 
         final List<String> messages = new ArrayList<>();
 
@@ -105,13 +104,6 @@ public class ChangePasswordController {
             }
         }
 
-        System.out.println("tooShort:" + tooShort);
-        System.out.println("noUpperCase:" + noUpperCase);
-        System.out.println("noLowerCase:" + noLowerCase);
-        System.out.println("noNumber:" + noNumber);
-        System.out.println("noSymbol:" + noSymbol);
-
-
         if(tooShort){
             messages.add("Password must be at least 12 characters long.");
         }
@@ -137,18 +129,14 @@ public class ChangePasswordController {
     @RequestMapping(value="/passwordChange", method= RequestMethod.POST)
     public String passwordChangeSubmit(@ModelAttribute PasswordChange passwordChange, Model model) {
 
-        System.out.println("execute password change request to ldap...");
-        System.out.println("url:" + url);
-        System.out.println("ssl:" + ssl);
-        System.out.println("cnsuffix:" + cnsuffix);
-        System.out.println("cnprefix:" + cnprefix);
-        System.out.println("the request will be: " + cnprefix + "YOUR-NAME" + cnsuffix);
+        LOG.info("Validating new password for {}", passwordChange.getName());
 
         try {
             final List<String> messages = validateDetails(passwordChange);
 
             if(messages.size() > 0) {
-                System.out.println("Invalid password change request");
+                LOG.info("Invalid password change request");
+                LOG.debug("Password failed the following tests: ", (Object)messages);
 
                 model.addAttribute(ERROR, true);
 
@@ -157,7 +145,7 @@ public class ChangePasswordController {
                 return RESULT_PAGE;
             }
 
-            System.out.println("Attempting to change password");
+            LOG.info("New password passed policy checks.");
 
             final String[] parts = url.split(":",2);
 
@@ -168,6 +156,8 @@ public class ChangePasswordController {
             final int port = Integer.parseInt(portString);
 
             final String userDn = cnprefix + passwordChange.getName() + cnsuffix;
+
+            LOG.debug("Connecting to LDAP: {} binding to {}", url, userDn);
 
             LDAPConnection connection = new LDAPConnection(host, port, userDn, passwordChange.getOldPassword());
 
@@ -183,14 +173,14 @@ public class ChangePasswordController {
 
                 }
                 catch(LDAPException ex){
-                    System.out.println("Could not change password: " + ex.getMessage());
-                    System.out.println("Diagnostic message: " + ex.getDiagnosticMessage());
+                    LOG.info("Could not change password - request failed");
+                    LOG.error("LDAP Exception", ex);
                     result = new PasswordModifyExtendedResult(new ExtendedResult(ex.toLDAPResult()));
                 }
 
                 if(result.getResultCode() != ResultCode.SUCCESS){
 
-                    System.out.println("Result Code: " + result.getResultCode().toString());
+                    LOG.debug("Result Code: {}", result.getResultCode());
 
                     messages.add(result.getResultCode().toString());
 
@@ -205,10 +195,12 @@ public class ChangePasswordController {
 
             return RESULT_PAGE;
         } catch (Exception e) {
-            System.out.println("try to update password lead to an error: " + e.getMessage());
-            model.addAttribute(MESSAGES, e.getMessage());
+            LOG.error("Attempt to update password failed", e);
+
+            model.addAttribute(MESSAGES, new String[]{ "Unexpected error - please contact Support" });
+
             model.addAttribute(ERROR, true);
-            e.printStackTrace();
+
             return RESULT_PAGE;
         }
     }
