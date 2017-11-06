@@ -23,6 +23,9 @@ import java.util.List;
 public class ChangePasswordController {
 
     public static final String[] USER_PASSWORD_ATTRS = {"userPassword"};
+    public static final String MESSAGES = "messages";
+    public static final String ERROR = "error";
+    public static final String RESULT_PAGE = "passwordChange";
 
     @Value("${url:localhost:389}") //serverIP:serverPort
     private String url;
@@ -51,7 +54,7 @@ public class ChangePasswordController {
         passwordChange.setCnsuffix(cnsuffix);
         passwordChange.setUrl(url);
 
-        model.addAttribute("passwordChange", passwordChange);
+        model.addAttribute(RESULT_PAGE, passwordChange);
         return "ChangePassword";
     }
 
@@ -147,11 +150,11 @@ public class ChangePasswordController {
             if(messages.size() > 0) {
                 System.out.println("Invalid password change request");
 
-                model.addAttribute("error", true);
+                model.addAttribute(ERROR, true);
 
-                model.addAttribute("messages", messages);
+                model.addAttribute(MESSAGES, messages);
 
-                return "passwordChange";
+                return RESULT_PAGE;
             }
 
             System.out.println("Attempting to change password");
@@ -191,22 +194,22 @@ public class ChangePasswordController {
 
                     messages.add(result.getResultCode().toString());
 
-                    model.addAttribute("error", true);
+                    model.addAttribute(ERROR, true);
 
-                    model.addAttribute("messages", messages);
+                    model.addAttribute(MESSAGES, messages);
                 }
             }
             finally{
                 connection.close();
             }
 
-            return "passwordChange";
+            return RESULT_PAGE;
         } catch (Exception e) {
             System.out.println("try to update password lead to an error: " + e.getMessage());
-            model.addAttribute("message", e.getMessage());
-            model.addAttribute("error", true);
+            model.addAttribute(MESSAGES, e.getMessage());
+            model.addAttribute(ERROR, true);
             e.printStackTrace();
-            return "passwordChange";
+            return RESULT_PAGE;
         }
     }
 }
