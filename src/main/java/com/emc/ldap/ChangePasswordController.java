@@ -59,11 +59,11 @@ public class ChangePasswordController {
         return "ChangePassword";
     }
 
-    private List<String> validateDetails(PasswordChange passwordChange){
+    private List<String> validateDetails(PasswordChange passwordChange) {
 
         final List<String> messages = new ArrayList<>();
 
-        if(excludes.contains(passwordChange.getName().trim())) {
+        if (excludes.contains(passwordChange.getName().trim())) {
             messages.add("it is not allowed to change the password of this user, see exclude list");
 
             return messages;
@@ -71,7 +71,7 @@ public class ChangePasswordController {
 
         String password = passwordChange.getPassword();
 
-        if(!password.equals(passwordChange.getPasswordRepeat())) {
+        if (!password.equals(passwordChange.getPasswordRepeat())) {
             messages.add("New password values do not match");
 
             return messages;
@@ -87,46 +87,38 @@ public class ChangePasswordController {
 
         boolean noSymbol = true;
 
-        for (int i = 0, n = password.length(); i < n; ++i){
+        for (int i = 0, n = password.length(); i < n; ++i) {
             char ch = password.charAt(i);
 
-            if(Character.isUpperCase(ch)){
+            if (Character.isUpperCase(ch)) {
                 noUpperCase = false;
-            }
-            else if(Character.isLowerCase(ch)){
+            } else if (Character.isLowerCase(ch)) {
                 noLowerCase = false;
-            }
-            else if(Character.isDigit(ch)){
+            } else if (Character.isDigit(ch)) {
                 noNumber = false;
-            }
-            else {
+            } else {
                 noSymbol = false;
             }
         }
 
-        if(tooShort){
+        int differentCharacterClassCount =
+                (noUpperCase ? 0 : 1) +
+                (noLowerCase ? 0 : 1) +
+                (noNumber ? 0 : 1) +
+                (noSymbol ? 0 : 1);
+
+        if (tooShort) {
             messages.add("Password must be at least 12 characters long.");
         }
 
-        if(noUpperCase){
-            messages.add("Password must contain at least one upper-case character.");
-        }
-
-        if(noLowerCase){
-            messages.add("Password must contain at least one lower-case character.");
-        }
-
-        if(noNumber){
-            messages.add("Password must contain at least one number.");
-        }
-
-        if(noSymbol){
-            messages.add("Password must contain at least one symbol.");
+        if (differentCharacterClassCount < 3) {
+            messages.add("Password must contain at least 3 of the following: lower case letter, upper case letter, number, symbol");
         }
 
         return messages;
     }
-    @RequestMapping(value="/passwordChange", method= RequestMethod.POST)
+
+    @RequestMapping(value = "/passwordChange", method = RequestMethod.POST)
     public String passwordChangeSubmit(@ModelAttribute PasswordChange passwordChange, Model model) {
 
         LOG.info("Validating new password for {}", passwordChange.getName());
@@ -134,9 +126,9 @@ public class ChangePasswordController {
         try {
             final List<String> messages = validateDetails(passwordChange);
 
-            if(messages.size() > 0) {
+            if (messages.size() > 0) {
                 LOG.info("Invalid password change request");
-                LOG.debug("Password failed the following tests: ", (Object)messages);
+                LOG.debug("Password failed the following tests: ", (Object) messages);
 
                 model.addAttribute(ERROR, true);
 
@@ -147,7 +139,7 @@ public class ChangePasswordController {
 
             LOG.info("New password passed policy checks.");
 
-            final String[] parts = url.split(":",2);
+            final String[] parts = url.split(":", 2);
 
             final String host = parts[0];
 
@@ -168,17 +160,16 @@ public class ChangePasswordController {
 
                 PasswordModifyExtendedResult result;
 
-                try{
+                try {
                     result = (PasswordModifyExtendedResult) connection.processExtendedOperation(request);
 
-                }
-                catch(LDAPException ex){
+                } catch (LDAPException ex) {
                     LOG.info("Could not change password - request failed");
                     LOG.error("LDAP Exception", ex);
                     result = new PasswordModifyExtendedResult(new ExtendedResult(ex.toLDAPResult()));
                 }
 
-                if(result.getResultCode() != ResultCode.SUCCESS){
+                if (result.getResultCode() != ResultCode.SUCCESS) {
 
                     LOG.debug("Result Code: {}", result.getResultCode());
 
@@ -188,8 +179,7 @@ public class ChangePasswordController {
 
                     model.addAttribute(MESSAGES, messages);
                 }
-            }
-            finally{
+            } finally {
                 connection.close();
             }
 
@@ -197,7 +187,7 @@ public class ChangePasswordController {
         } catch (Exception e) {
             LOG.error("Attempt to update password failed", e);
 
-            model.addAttribute(MESSAGES, new String[]{ "Unexpected error - please contact Support" });
+            model.addAttribute(MESSAGES, new String[]{"Unexpected error - please contact Support"});
 
             model.addAttribute(ERROR, true);
 
