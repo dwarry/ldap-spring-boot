@@ -5,6 +5,7 @@ public class PasswordChange {
     String name;
     String password;
     String oldPassword;
+    boolean useManager;
 
     String url;
     String cnsuffix;
@@ -42,6 +43,10 @@ public class PasswordChange {
         this.name = name;
     }
 
+    public boolean getUseManager() {return this.useManager;}
+
+    public void setUseManager(boolean useManager) { this.useManager = useManager; }
+
     public String getOldPassword() {
         return oldPassword;
     }
@@ -49,7 +54,6 @@ public class PasswordChange {
     public void setOldPassword(String oldPassword) {
         this.oldPassword = oldPassword;
     }
-
 
     public String getPassword() {
         return password;
