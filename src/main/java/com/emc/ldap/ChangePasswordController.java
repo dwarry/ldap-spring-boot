@@ -31,6 +31,9 @@ public class ChangePasswordController {
     @Value("${url:localhost:389}") //serverIP:serverPort
     private String url;
 
+    @Value("${managerDn}")
+    private String managerDn;
+
     @Value("${ssl:false}")
     private boolean ssl;
 
@@ -48,6 +51,7 @@ public class ChangePasswordController {
 
         PasswordChange passwordChange = new PasswordChange();
         passwordChange.setName("");
+        passwordChange.setUseManager(false);
         passwordChange.setOldPassword("");
         passwordChange.setPassword("");
         passwordChange.setPasswordRepeat("");
@@ -147,7 +151,15 @@ public class ChangePasswordController {
 
             final int port = Integer.parseInt(portString);
 
-            final String userDn = cnprefix + passwordChange.getName() + cnsuffix;
+            LOG.debug("Using Manager credentials: {}", passwordChange.getUseManager());
+
+            final String userDn = passwordChange.getUseManager()
+                    ? this.managerDn
+                    : cnprefix + passwordChange.getName() + cnsuffix;
+
+            final String oldPassword = passwordChange.getUseManager()
+                    ? null
+                    : passwordChange.getOldPassword();
 
             LOG.debug("Connecting to LDAP: {} binding to {}", url, userDn);
 
@@ -155,7 +167,7 @@ public class ChangePasswordController {
 
             try {
                 final PasswordModifyExtendedRequest request = new PasswordModifyExtendedRequest(userDn,
-                        passwordChange.getOldPassword(),
+                        oldPassword,
                         passwordChange.getPassword());
 
                 PasswordModifyExtendedResult result;
